@@ -335,7 +335,7 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
 		 *            更新するディレクトリ(ルートディレクトリでなくても可)
 		 */
 		public void updateSongDatas(Stream<Path> paths) {
-            // TODO songinfo.db用処理のバッチ化といった高速化、現状オリジナル処理のまま
+            // TODO songinfo.db用処理のバッチ化といった高速化、現状オリジナル処理のまま、走査、デコード、DB処理で別スレッド化という案もあり
 			long time = System.currentTimeMillis();
 			SongDatabaseUpdaterProperty property = new SongDatabaseUpdaterProperty(Calendar.getInstance().getTimeInMillis() / 1000, info);
 			property.count.set(0);
@@ -493,19 +493,46 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
                                 boolean txtPresent = false;
                                 String previewpath = null;
                                 boolean isUpdateDir = folderRecord == null || folderRecord.getDate() != dirMtime;
-                                if (everything.isAvailable()) { //everything.isAvailable()
+                                if (everything.isAvailable()) {
                                     // Everythingが使える場合は事前構築したハッシュマップで判定を行える
-                                    if (isUpdateDir) {
-                                        // 更新ありフォルダ
-                                        FolderInfo fi = folderInfoMap.get(dir);
-                                        bmsFiles = fi != null ? fi.bmsFiles : Collections.emptyList();
-                                        txtPresent = fi != null && fi.hasTxt;
-                                        List<Path> previews = fi != null ? fi.previewFiles : Collections.emptyList();
-                                        previewpath = previews.isEmpty() ? null : previews.get(0).getFileName().toString();
+                                    if (scanRoot.isAbsolute()) {
+                                        // 走査中のルートが絶対パスの場合は、Everythingの結果を素直に扱える
+                                        if (isUpdateDir) {
+                                            // 更新ありフォルダ
+                                            FolderInfo fi = folderInfoMap.get(dir);
+                                            bmsFiles = fi != null ? fi.bmsFiles : Collections.emptyList();
+                                            txtPresent = fi != null && fi.hasTxt;
+                                            List<Path> previews = fi != null ? fi.previewFiles : Collections.emptyList();
+                                            previewpath = previews.isEmpty() ? null : previews.get(0).getFileName().toString();
+                                        } else {
+                                            // 更新なしフォルダ
+                                            FolderInfo fi = folderInfoMap.get(dir);
+                                            bmsFiles = fi != null ? fi.bmsFiles : Collections.emptyList();
+                                        }
                                     } else {
-                                        // 更新なしフォルダ
-                                        FolderInfo fi = folderInfoMap.get(dir);
-                                        bmsFiles = fi != null ? fi.bmsFiles : Collections.emptyList();
+                                        // 走査中のルートが相対パスの場合は、Everythingの結果を相対パスに変換しないと、DBのpathの値と不整合が生じて正常に処理できない
+                                        Path cd = Path.of("").toAbsolutePath(); // カレントディレクトリ
+                                        Path absDir = dir.toAbsolutePath();
+                                        if (isUpdateDir) {
+                                            // 更新ありフォルダ
+                                            FolderInfo fi = folderInfoMap.get(absDir);
+                                            bmsFiles = fi != null
+                                                    ? fi.bmsFiles.stream()
+                                                        .map(path -> cd.relativize(path.normalize()))
+                                                        .toList()
+                                                    : Collections.emptyList();
+                                            txtPresent = fi != null && fi.hasTxt;
+                                            List<Path> previews = fi != null ? fi.previewFiles : Collections.emptyList();
+                                            previewpath = previews.isEmpty() ? null : previews.get(0).getFileName().toString();
+                                        } else {
+                                            // 更新なしフォルダ
+                                            FolderInfo fi = folderInfoMap.get(absDir);
+                                            bmsFiles = fi != null
+                                                    ? fi.bmsFiles.stream()
+                                                    .map(path -> cd.relativize(path.normalize()))
+                                                    .toList()
+                                                    : Collections.emptyList();
+                                        }
                                     }
                                 } else {
                                     // Everythingが使えない場合は従来の DirectoryStream ベース処理（フォールバック）

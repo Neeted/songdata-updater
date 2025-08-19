@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
  * フォルダ単位の FolderInfo マップ (Map<Path,FolderInfo>) を作るユーティリティ。
  * - everything: EverythingWrapper のインスタンス（既に isAvailable() を確認すること）
  * - bmsRoots: String[] のルート群（例: private final String[] bmsroot; を渡す）
+ * - ルート群は相対パスであっても検索時は絶対パスに変換する
  */
 public final class EverythingBatchIndexer {
     private final EverythingWrapper everything;
@@ -79,6 +80,7 @@ public final class EverythingBatchIndexer {
                 .filter(Objects::nonNull)
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .map(path -> Path.of(path).toAbsolutePath().toString()) // 相対パスではなく絶対パスで検索を行う
                 .map(this::quoteAndEnsureTrailingSlash)
                 .collect(Collectors.joining("|"));
         return "file:<" + joined + ">";
