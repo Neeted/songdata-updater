@@ -1,0 +1,108 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0' // https://plugins.gradle.org/plugin/org.openjfx.javafxplugin
+    id 'com.github.johnrengelman.shadow' version '8.1.1'   // fat jar 作成
+    id 'org.beryx.runtime' version '1.13.1'                // jlink / jpackage 補助
+}
+
+group = 'jp.howan.songdata'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// --- パス定義 ---
+def originalDiscordFat = file("lib/java-discord-rpc-2.0.1-all.jar")
+def repackedDiscordJar = file("lib/java-discord-rpc-2.0.1-nojna.jar")
+
+// --- repack タスク（JNA を除去して再パッケージ） ---
+tasks.register("repackDiscordJar", Jar) {
+    group = "build"
+    description = "Repackage java-discord-rpc-2.0.1-all.jar without bundled JNA classes."
+
+    // 出力名／出力先
+    archiveFileName.set(repackedDiscordJar.name)
+    destinationDirectory.set(repackedDiscordJar.parentFile)
+
+    // up-to-date 判定のための inputs/outputs 宣言
+    inputs.file(originalDiscordFat)
+    outputs.file(repackedDiscordJar)
+
+    // 実行時にのみ zipTree が評価されるようにクロージャで指定
+    from({ zipTree(originalDiscordFat) }) {
+        exclude "com/sun/jna/**"
+    }
+
+    // 元の fat jar が無ければ実行しない（安全措置）
+    onlyIf {
+        if (!originalDiscordFat.exists()) {
+            logger.lifecycle("Original discord fat jar not found at ${originalDiscordFat}. Skipping repackDiscordJar.")
+            return false
+        }
+        return true
+    }
+}
+
+dependencies {
+    // repackedDiscordJar が存在しない/古い場合は repackDiscordJar が自動で実行されるように builtBy を付与
+    implementation files(repackedDiscordJar).builtBy(tasks.named("repackDiscordJar"))
+
+    // それ以外の依存関係
+    implementation files('lib/jbms-parser.jar')
+    implementation files('lib/jbmstable-parser.jar')
+    implementation files('lib/gdx.jar')
+    implementation files('lib/gdx-freetype.jar')
+    implementation files('lib/gdx-backend-lwjgl.jar')
+    implementation files('lib/gdx-controllers.jar')
+    implementation files('lib/javacv.jar')
+    implementation files('lib/jflac-codec-1.5.3.jar')
+    implementation files('lib/jportaudio.jar')
+    implementation files('lib/luaj-jse-3.0.2-custom.jar')
+    implementation 'org.xerial:sqlite-jdbc:3.50.3.0'            // https://mvnrepository.com/artifact/org.xerial/sqlite-jdbc
+    implementation 'commons-dbutils:commons-dbutils:1.8.1'      // https://mvnrepository.com/artifact/commons-dbutils/commons-dbutils
+    implementation 'org.apache.commons:commons-compress:1.28.0' // https://mvnrepository.com/artifact/org.apache.commons/commons-compress
+    implementation 'org.slf4j:slf4j-simple:2.0.17'              // https://mvnrepository.com/artifact/org.slf4j/slf4j-simple
+    implementation 'org.twitter4j:twitter4j-core:4.0.4'         // https://mvnrepository.com/artifact/org.twitter4j/twitter4j-core
+    // 公式JNAをプロジェクトで管理（競合回避のため）
+    implementation 'net.java.dev.jna:jna:5.17.0'                // https://mvnrepository.com/artifact/net.java.dev.jna/jna
+}
+
+application {
+    mainClass = 'jp.howan.songdata.Main'
+}
+
+javafx {
+    version = "21.0.8"
+    modules = [ 'javafx.controls', 'javafx.fxml' ]
+}
+
+shadowJar {
+    archiveFileName.set('songdata-updater.jar')
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}
+
+tasks.register('packageDist', Zip) {
+    dependsOn shadowJar
+
+    // shadowJar の出力ファイルを直接参照する（遅延評価）
+    from({ tasks.named('shadowJar').get().archiveFile }) {
+        into '.'
+    }
+
+    from('natives') { into 'natives' }
+    from('songdata-updater-run.bat')
+
+    archiveBaseName.set("songdata-updater")
+    archiveVersion.set("${project.version}-win")
+    destinationDirectory.set(layout.buildDirectory.dir("dist"))
+}
