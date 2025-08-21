@@ -7,16 +7,15 @@ import java.util.stream.Collectors;
 /**
  * EverythingBatchIndexer: bmsroot 配列を基に Everything を一括で叩き、
  * フォルダ単位の FolderInfo マップ (Map<Path,FolderInfo>) を作るユーティリティ。
- * - everything: EverythingWrapper のインスタンス（既に isAvailable() を確認すること）
- * - bmsRoots: String[] のルート群（例: private final String[] bmsroot; を渡す）
+ * 動作前提:
+ * - EverythingDirect.isAvailable() が true のときに EverythingDirect のネイティブがロードされていること
+ * - bmsRoots に指定した文字列配列はパス（絶対 or 相対）として扱えること
  * - ルート群は相対パスであっても検索時は絶対パスに変換する
  */
 public final class EverythingBatchIndexer {
-    private final EverythingWrapper everything;
     private final String[] bmsRoots;
 
-    public EverythingBatchIndexer(EverythingWrapper everything, String[] bmsRoots) {
-        this.everything = Objects.requireNonNull(everything);
+    public EverythingBatchIndexer(String[] bmsRoots) {
         this.bmsRoots = bmsRoots != null ? bmsRoots.clone() : new String[0];
     }
 
@@ -24,13 +23,13 @@ public final class EverythingBatchIndexer {
      * ルート群以下の BMS/txt/preview を一括で集め、BMS が存在するフォルダのみをキーとする Map<Path,FolderInfo> を返す。
      */
     public Map<Path, FolderInfo> buildFolderInfoMap() {
-        if (!everything.isAvailable()) return Collections.emptyMap();
+        if (!EverythingDirect.isAvailable()) return Collections.emptyMap();
         String rootClause = buildRootClause(); // file:<"r1\"|"r2\">
         if (rootClause.isEmpty()) return Collections.emptyMap();
 
         // 1) BMS 一括取得（全サブディレクトリを含む）
         String bmsSearch = rootClause + " ext:bms;bme;bml;pms;bmson";
-        List<Path> allBms = everything.search(bmsSearch);
+        List<Path> allBms = EverythingDirect.doSearchCollect(bmsSearch);
 
         // Map を作る（キー = 親フォルダ）
         Map<Path, FolderInfo> map = new HashMap<>(Math.max(16, allBms.size() / 4));
@@ -48,7 +47,7 @@ public final class EverythingBatchIndexer {
 
         // 2) txt 一括取得 -> parent が map にある場合だけフラグを立てる
         String txtSearch = rootClause + " ext:txt";
-        List<Path> allTxt = everything.search(txtSearch);
+        List<Path> allTxt = EverythingDirect.doSearchCollect(txtSearch);
         for (Path p : allTxt) {
             Path parent = p.getParent();
             if (parent == null) continue;
@@ -60,7 +59,7 @@ public final class EverythingBatchIndexer {
 
         // 3) preview 一括取得 -> parent が map にある場合だけ preview を追加する
         String previewSearch = rootClause + " startwith:preview ext:wav;ogg;mp3;flac";
-        List<Path> allPreview = everything.search(previewSearch);
+        List<Path> allPreview = EverythingDirect.doSearchCollect(previewSearch);
         for (Path p : allPreview) {
             Path parent = p.getParent();
             if (parent == null) continue;

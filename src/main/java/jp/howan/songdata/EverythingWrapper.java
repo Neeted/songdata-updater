@@ -1,9 +1,7 @@
 package jp.howan.songdata;
 
 import com.sun.jna.*;
-import java.io.IOException;
 import java.nio.file.*;
-import java.nio.file.attribute.FileTime;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -28,11 +26,6 @@ public final class EverythingWrapper {
     private final EverythingLib lib;
     private final boolean available;
     private static final int BUF = 8192;
-
-    // 固定拡張子句（毎回コレを組み立てるより文字列で保持）
-    private static final String BMS_EXT_CLAUSE = "ext:bms;bme;bml;pms;bmson";
-    private static final String AUDIO_EXT_CLAUSE = "ext:wav;ogg;mp3;flac";
-    private static final String TXT_EXT_CLAUSE = "ext:txt";
 
     public EverythingWrapper() {
         EverythingLib tmp = null;
@@ -100,77 +93,6 @@ public final class EverythingWrapper {
         return available && lib != null;
     }
 
-    /* -------------------------
-       High-level helpers for preVisitDirectory
-       当初の想定ではこれらのクエリ群を活用する想定だったが、JNAによるネイティブ呼び出しのオーバーヘッドが重く使い物にならない残骸
-       ------------------------- */
-
-    /** 直下の BMS 系ファイルを取得（サブディレクトリは含まれない） */
-    public List<Path> listBmsFilesDirect(Path dir) {
-        if (!isAvailable()) return Collections.emptyList();
-        String search = "parent:" + quotedPathWithSlash(dir) + " " + BMS_EXT_CLAUSE;
-        return search(search);
-    }
-
-    /** 直下の preview*.(wav/ogg/mp3/flac) を先頭1件だけ取得（見つからなければ Optional.empty()） */
-    public Optional<Path> findPreviewFileDirect(Path dir) {
-        if (!isAvailable()) return Optional.empty();
-        // startwith:preview と ext:... を AND、count:1 で最小件数取得
-        String search = "parent:" + quotedPathWithSlash(dir) + " startwith:preview " + AUDIO_EXT_CLAUSE + " count:1";
-        List<Path> r = search(search);
-        if (r.isEmpty()) return Optional.empty();
-        return Optional.of(r.get(0));
-    }
-
-    /** 直下に .txt があるかどうか（存在チェック） */
-    public boolean hasTxtDirect(Path dir) {
-        if (!isAvailable()) return false;
-        String search = "parent:" + quotedPathWithSlash(dir) + " " + TXT_EXT_CLAUSE + " count:1";
-        List<Path> r = search(search);
-        return !r.isEmpty();
-    }
-
-    /** ファイルの最終更新日時を取得（Files API：I/Oが発生する） */
-    public FileTime getLastModifiedTime(Path p) throws IOException {
-        return Files.getLastModifiedTime(p);
-    }
-
-    /* -------------------------
-       Low-level search helper
-       ------------------------- */
-    /* 普通に以下のコメントアウトしてあるコードで動くが、ChatGPTが謎に堅牢版なるものを出してきたのでそっちを使う(未精査) */
-//    private List<Path> search(String search) {
-//        List<Path> out = new ArrayList<>();
-//        try {
-//            // 明示的に case-insensitive にしておく（安全策）
-//            try { lib.Everything_SetMatchCase(false); } catch (Throwable ignore) {}
-//
-//            lib.Everything_SetSearchW(new WString(search));
-//            boolean qOk = lib.Everything_QueryW(true);
-//            if (!qOk) return Collections.emptyList();
-//
-//            int n = lib.Everything_GetNumResults();
-//            if (n <= 0) return Collections.emptyList();
-//
-//            char[] buf = new char[BUF];
-//            for (int i = 0; i < n; i++) {
-//                Arrays.fill(buf, '\0');
-//                int r = lib.Everything_GetResultFullPathNameW(i, buf, BUF);
-//                if (r > 0) {
-//                    String s = Native.toString(buf);
-//                    Path p = Paths.get(s);
-//                    // safety: skip directories (ext: クエリで返らないはずだが念のため)
-//                    try { if (Files.isDirectory(p)) continue; } catch (Throwable ignore) {}
-//                    out.add(p);
-//                }
-//            }
-//            return out;
-//        } catch (Throwable t) {
-//            // エラーが出たら空リストでフォールバック
-//            return Collections.emptyList();
-//        }
-//    }
-
     /**
      * 生の検索クエリを投げて Path リストを返す
      */
@@ -204,7 +126,6 @@ public final class EverythingWrapper {
             if (n <= 0) return Collections.emptyList();
 
             // 5) 結果文字列取得のための初期バッファ
-            int BUF = 8192;
             char[] buf = new char[BUF];
 
             for (int i = 0; i < n; i++) {
@@ -254,11 +175,5 @@ public final class EverythingWrapper {
             Logger.getGlobal().severe("[Everything] doSearchCollect exception: " + t);
             return Collections.emptyList();
         }
-    }
-
-    private static String quotedPathWithSlash(Path dir) {
-        String abs = dir.toAbsolutePath().toString().replace("\"", "");
-        if (!abs.endsWith("\\") && !abs.endsWith("/")) abs = abs + "\\";
-        return "\"" + abs + "\"";
     }
 }

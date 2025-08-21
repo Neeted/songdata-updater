@@ -1,13 +1,11 @@
 package bms.player.beatoraja.song;
 
-import jp.howan.songdata.EverythingWrapper;
+import jp.howan.songdata.EverythingDirect;
 import jp.howan.songdata.EverythingBatchIndexer;
 import jp.howan.songdata.FolderInfo;
 
-import java.beans.IntrospectionException;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -463,15 +461,15 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
                     };
 
                     // Everything SDK利用のためのラッパーインスタンスを作る
-                    final EverythingWrapper everything = new EverythingWrapper();
                     Map<Path, FolderInfo> folderInfoMap;
-                    if (everything.isAvailable()) {
+                    if (EverythingDirect.isAvailable()) {
                         // Everythingが利用できる場合、BMSが存在するフォルダの情報(BMSパスリスト、txt有無のフラグ、preview音源パスリスト)をフォルダパスをキーとしたハッシュマップで構築する
                         Logger.getGlobal().info("Everythingをファイル検索に利用します(Everythingのインデックスは最新化されている前提です)");
-                        EverythingBatchIndexer indexer = new EverythingBatchIndexer(everything, this.bmsroot);
+                        EverythingBatchIndexer indexer = new EverythingBatchIndexer(this.bmsroot);
                         folderInfoMap = indexer.buildFolderInfoMap();
                         Logger.getGlobal().info("EverythingによるBMSフォルダ情報ハッシュマップの構築が完了しました");
                     } else {
+                        Logger.getGlobal().info("Everythingが利用できないので通常のディレクトリ走査を行います");
                         folderInfoMap = Collections.emptyMap();
                     }
 
@@ -493,7 +491,7 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
                                 boolean txtPresent = false;
                                 String previewpath = null;
                                 boolean isUpdateDir = folderRecord == null || folderRecord.getDate() != dirMtime;
-                                if (everything.isAvailable()) {
+                                if (EverythingDirect.isAvailable()) {
                                     // Everythingが使える場合は事前構築したハッシュマップで判定を行える
                                     if (scanRoot.isAbsolute()) {
                                         // 走査中のルートが絶対パスの場合は、Everythingの結果を素直に扱える
