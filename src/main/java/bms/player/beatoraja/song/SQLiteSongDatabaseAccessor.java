@@ -595,12 +595,15 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
                                     long lastModified = -1;
                                     try { lastModified = Files.getLastModifiedTime(bmsPath).toMillis() / 1000; } catch (IOException e) {}
 
-                                    // 対象BMSを処理済みにする、既存BMSの場合はpreview音源のみ更新して、そのBMSの処理を終了する
+                                    // 対象BMSを処理済みにして、songのDELETE対象から外す
                                     final SongData existing = songMap.remove(pathname);
+                                    // 既存BMS(songテーブルのレコードとフルパス名と更新日時が一致)の場合はpreview音源のみ更新処理する
                                     if (existing != null && existing.getDate() == lastModified) {
                                         final String oldpp = existing.getPreview() == null ? "" : existing.getPreview();
                                         final String newpp = previewpath == null ? "" : previewpath;
-                                        if (!oldpp.equals(newpp)) {
+                                        // DBのpreviewとフォルダ内のpreviewが一致していない、かつ、フォルダ内のpreviewが空じゃない場合は、フォルダ内のpreviewをsongにUPDATEする
+                                        // 単に一致しない場合新しいものにすると、#PREVIEW _preview.wavのように指定されていた時に、音源が消えてしまうことになるので実在する場合のみ更新
+                                        if (!oldpp.equals(newpp) && !newpp.isEmpty()) {
                                             try {
                                                 int updated = qr.update(property.conn, "UPDATE song SET preview=? WHERE path = ?", newpp, pathname);
                                                 if (updated > 0) songUpdateCount.addAndGet(updated);
@@ -678,6 +681,8 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
                                             }
                                         }
 
+                                        // BMSの#PREVIEWに記載がない、かつ、フォルダ内にpreviewがあった場合は、フォルダ内のpreviewをセットする
+                                        // フォルダ内に実在するpreviewファイル名を優先したほうが良いような気が？
                                         if ((sd.getPreview() == null || sd.getPreview().length() == 0) && previewpath != null) {
                                             sd.setPreview(previewpath);
                                         }
@@ -844,12 +849,11 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
                     }
                     // commit は外側で行う（try-with-resources の conn を使用）
                 } // end try-with-resources psSong/psFolder
-                // songdata.db用トランザクション終了
                 conn.commit();
 			} catch (Exception e) {
 				Logger.getGlobal().severe("楽曲データベース更新時の例外:" + e.getMessage());
 				e.printStackTrace();
-			}
+			} // songdata.db用トランザクション終了 try-with-resources
 
 			if(info != null) {
                 // songinfo.db用トランザクション終了
