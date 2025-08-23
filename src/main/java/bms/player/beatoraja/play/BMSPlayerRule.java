@@ -43,7 +43,7 @@ public enum BMSPlayerRule {
     public static BMSPlayerRule getBMSPlayerRule(Mode mode) {
         for(BMSPlayerRule bmsrule : BMSPlayerRuleSet.Beatoraja.ruleset) {
         	if(bmsrule.mode.length == 0) {
-    			return bmsrule; 
+    			return bmsrule;
         	}
         	for(Mode m : bmsrule.mode) {
         		if(mode == m) {
@@ -105,8 +105,7 @@ public enum BMSPlayerRule {
 
 enum BMSPlayerRuleSet {
 	
-	Beatoraja(BMSPlayerRule.Beatoraja_5, BMSPlayerRule.Beatoraja_7, BMSPlayerRule.Beatoraja_9, BMSPlayerRule.Beatoraja_24,  BMSPlayerRule.Beatoraja_Other),
-	LR2(BMSPlayerRule.LR2);
+	Beatoraja(BMSPlayerRule.Beatoraja_5, BMSPlayerRule.Beatoraja_7, BMSPlayerRule.Beatoraja_9, BMSPlayerRule.Beatoraja_24,  BMSPlayerRule.Beatoraja_Other), LR2(BMSPlayerRule.LR2);
 	
 	public final BMSPlayerRule[] ruleset;
 	

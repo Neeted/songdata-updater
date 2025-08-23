@@ -17,11 +17,11 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
+//import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import bms.player.beatoraja.SQLiteDatabaseAccessor;
-import bms.player.beatoraja.Validatable;
+//import bms.player.beatoraja.Validatable;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.BeanListHandler;
@@ -48,7 +48,7 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
 
 	private final QueryRunner qr;
 	
-	private List<SongDatabaseAccessorPlugin> plugins = new ArrayList();
+//	private List<SongDatabaseAccessorPlugin> plugins = new ArrayList();
 	
 	public SQLiteSongDatabaseAccessor(String filepath, String[] bmsroot) throws ClassNotFoundException {
 		super(new Table("folder", 
@@ -107,9 +107,9 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
 		createTable();
 	}
 		
-	public void addPlugin(SongDatabaseAccessorPlugin plugin) {
-		plugins.add(plugin);
-	}
+//	public void addPlugin(SongDatabaseAccessorPlugin plugin) {
+//		plugins.add(plugin);
+//	}
 	
 	/**
 	 * 楽曲データベースを初期テーブルを作成する。 すでに初期テーブルを作成している場合は何もしない。
@@ -136,162 +136,162 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
 	}
 
 	
-	/**
-	 * 楽曲を取得する
-	 * 
-	 * @param key
-	 *            属性
-	 * @param value
-	 *            属性値
-	 * @return 検索結果
-	 */
-	public SongData[] getSongDatas(String key, String value) {
-		try {
-			final List<SongData> m = qr.query("SELECT * FROM song WHERE " + key + " = ?", songhandler, value);
-			return Validatable.removeInvalidElements(m).toArray(new SongData[m.size()]);
-		} catch (Exception e) {
-			e.printStackTrace();
-			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
-		}
-		return SongData.EMPTY;
-	}
-
-	/**
-	 * MD5/SHA256で指定した楽曲をまとめて取得する
-	 * 
-	 * @param hashes
-	 *            楽曲のMD5/SHA256
-	 * @return 取得した楽曲
-	 */
-	public SongData[] getSongDatas(String[] hashes) {
-		try {
-			StringBuilder md5str = new StringBuilder();
-			StringBuilder sha256str = new StringBuilder();
-			for (String hash : hashes) {
-				if (hash.length() > 32) {
-					if (sha256str.length() > 0) {
-						sha256str.append(',');
-					}
-					sha256str.append('\'').append(hash).append('\'');
-				} else {
-					if (md5str.length() > 0) {
-						md5str.append(',');
-					}
-					md5str.append('\'').append(hash).append('\'');
-				}
-			}
-			List<SongData> m = qr.query("SELECT * FROM song WHERE md5 IN (" + md5str.toString() + ") OR sha256 IN ("
-					+ sha256str.toString() + ")", songhandler);
-			
-			// 検索並び順保持
-			List<SongData> sorted = m.stream().sorted((a, b) -> {
-				int aIndexSha256 = -1,aIndexMd5 = -1,bIndexSha256 = -1,bIndexMd5 = -1;
-				for(int i = 0;i < hashes.length;i++) {
-					if(hashes[i].equals(a.getSha256())) aIndexSha256 = i;
-					if(hashes[i].equals(a.getMd5())) aIndexMd5 = i;
-					if(hashes[i].equals(b.getSha256())) bIndexSha256 = i;
-					if(hashes[i].equals(b.getMd5())) bIndexMd5 = i;
-				}
-			    int aIndex = Math.min((aIndexSha256 == -1 ? Integer.MAX_VALUE : aIndexSha256), (aIndexMd5 == -1 ? Integer.MAX_VALUE : aIndexMd5));
-			    int bIndex = Math.min((bIndexSha256 == -1 ? Integer.MAX_VALUE : bIndexSha256), (bIndexMd5 == -1 ? Integer.MAX_VALUE : bIndexMd5));
-			    return bIndex - aIndex;
-            }).collect(Collectors.toList());
-
-			SongData[] validated = Validatable.removeInvalidElements(sorted).toArray(new SongData[m.size()]);
-			return validated;
-		} catch (Exception e) {
-			e.printStackTrace();
-			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
-		}
-
-		return SongData.EMPTY;
-	}
-
-	public SongData[] getSongDatas(String sql, String score, String scorelog, String info) {
-		try (Statement stmt = qr.getDataSource().getConnection().createStatement()) {
-			stmt.execute("ATTACH DATABASE '" + score + "' as scoredb");
-			stmt.execute("ATTACH DATABASE '" + scorelog + "' as scorelogdb");
-			List<SongData> m;
-
-			if(info != null) {
-				stmt.execute("ATTACH DATABASE '" + info + "' as infodb");
-				String s = "SELECT DISTINCT md5, song.sha256 AS sha256, title, subtitle, genre, artist, subartist,path,folder,stagefile,banner,backbmp,parent,level,difficulty,"
-						+ "maxbpm,minbpm,song.mode AS mode, judge, feature, content, song.date AS date, favorite, song.notes AS notes, adddate, preview, length, charthash"
-						+ " FROM song INNER JOIN (information LEFT OUTER JOIN (score LEFT OUTER JOIN scorelog ON score.sha256 = scorelog.sha256) ON information.sha256 = score.sha256) "
-						+ "ON song.sha256 = information.sha256 WHERE " + sql;
-				ResultSet rs = stmt.executeQuery(s);
-				m = songhandler.handle(rs);
-//				System.out.println(s + " -> result : " + m.size());
-				stmt.execute("DETACH DATABASE infodb");
-			} else {
-				String s = "SELECT DISTINCT md5, song.sha256 AS sha256, title, subtitle, genre, artist, subartist,path,folder,stagefile,banner,backbmp,parent,level,difficulty,"
-						+ "maxbpm,minbpm,song.mode AS mode, judge, feature, content, song.date AS date, favorite, song.notes AS notes, adddate, preview, length, charthash"
-						+ " FROM song LEFT OUTER JOIN (score LEFT OUTER JOIN scorelog ON score.sha256 = scorelog.sha256) ON song.sha256 = score.sha256 WHERE " + sql;
-				ResultSet rs = stmt.executeQuery(s);
-				m = songhandler.handle(rs);
-			}
-			stmt.execute("DETACH DATABASE scorelogdb");				
-			stmt.execute("DETACH DATABASE scoredb");
-			return Validatable.removeInvalidElements(m).toArray(new SongData[m.size()]);
-		} catch(Throwable e) {
-			e.printStackTrace();			
-		}
-
-		return SongData.EMPTY;
-
-	}
-
-	public SongData[] getSongDatasByText(String text) {
-		try {
-			List<SongData> m = qr.query(
-					"SELECT * FROM song WHERE rtrim(title||' '||subtitle||' '||artist||' '||subartist||' '||genre) LIKE ?"
-							+ " GROUP BY sha256",songhandler, "%" + text + "%");
-			return Validatable.removeInvalidElements(m).toArray(new SongData[m.size()]);
-		} catch (Exception e) {
-			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
-		}
-
-		return SongData.EMPTY;
-	}
-	
-	/**
-	 * 楽曲を取得する
-	 * 
-	 * @param key
-	 *            属性
-	 * @param value
-	 *            属性値
-	 * @return 検索結果
-	 */
-	public FolderData[] getFolderDatas(String key, String value) {
-		try {
-			final List<FolderData> m = qr.query("SELECT * FROM folder WHERE " + key + " = ?", folderhandler, value);
-			return m.toArray(new FolderData[m.size()]);
-		} catch (Exception e) {
-			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
-		}
-
-		return FolderData.EMPTY;
-	}
-
-	/**
-	 * 楽曲を更新する
-	 * 
-	 * @param songs 更新する楽曲
-	 */
-	public void setSongDatas(SongData[] songs) {
-		try (Connection conn = qr.getDataSource().getConnection()){
-			conn.setAutoCommit(false);
-
-			for (SongData sd : songs) {
-				this.insert(qr, conn, "song", sd);
-			}
-			conn.commit();
-			conn.close();
-		} catch (Exception e) {
-			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
-		}
-	}
+//	/**
+//	 * 楽曲を取得する
+//	 *
+//	 * @param key
+//	 *            属性
+//	 * @param value
+//	 *            属性値
+//	 * @return 検索結果
+//	 */
+//	public SongData[] getSongDatas(String key, String value) {
+//		try {
+//			final List<SongData> m = qr.query("SELECT * FROM song WHERE " + key + " = ?", songhandler, value);
+//			return Validatable.removeInvalidElements(m).toArray(new SongData[m.size()]);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
+//		}
+//		return SongData.EMPTY;
+//	}
+//
+//	/**
+//	 * MD5/SHA256で指定した楽曲をまとめて取得する
+//	 *
+//	 * @param hashes
+//	 *            楽曲のMD5/SHA256
+//	 * @return 取得した楽曲
+//	 */
+//	public SongData[] getSongDatas(String[] hashes) {
+//		try {
+//			StringBuilder md5str = new StringBuilder();
+//			StringBuilder sha256str = new StringBuilder();
+//			for (String hash : hashes) {
+//				if (hash.length() > 32) {
+//					if (sha256str.length() > 0) {
+//						sha256str.append(',');
+//					}
+//					sha256str.append('\'').append(hash).append('\'');
+//				} else {
+//					if (md5str.length() > 0) {
+//						md5str.append(',');
+//					}
+//					md5str.append('\'').append(hash).append('\'');
+//				}
+//			}
+//			List<SongData> m = qr.query("SELECT * FROM song WHERE md5 IN (" + md5str.toString() + ") OR sha256 IN ("
+//					+ sha256str.toString() + ")", songhandler);
+//
+//			// 検索並び順保持
+//			List<SongData> sorted = m.stream().sorted((a, b) -> {
+//				int aIndexSha256 = -1,aIndexMd5 = -1,bIndexSha256 = -1,bIndexMd5 = -1;
+//				for(int i = 0;i < hashes.length;i++) {
+//					if(hashes[i].equals(a.getSha256())) aIndexSha256 = i;
+//					if(hashes[i].equals(a.getMd5())) aIndexMd5 = i;
+//					if(hashes[i].equals(b.getSha256())) bIndexSha256 = i;
+//					if(hashes[i].equals(b.getMd5())) bIndexMd5 = i;
+//				}
+//			    int aIndex = Math.min((aIndexSha256 == -1 ? Integer.MAX_VALUE : aIndexSha256), (aIndexMd5 == -1 ? Integer.MAX_VALUE : aIndexMd5));
+//			    int bIndex = Math.min((bIndexSha256 == -1 ? Integer.MAX_VALUE : bIndexSha256), (bIndexMd5 == -1 ? Integer.MAX_VALUE : bIndexMd5));
+//			    return bIndex - aIndex;
+//            }).collect(Collectors.toList());
+//
+//			SongData[] validated = Validatable.removeInvalidElements(sorted).toArray(new SongData[m.size()]);
+//			return validated;
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
+//		}
+//
+//		return SongData.EMPTY;
+//	}
+//
+//	public SongData[] getSongDatas(String sql, String score, String scorelog, String info) {
+//		try (Statement stmt = qr.getDataSource().getConnection().createStatement()) {
+//			stmt.execute("ATTACH DATABASE '" + score + "' as scoredb");
+//			stmt.execute("ATTACH DATABASE '" + scorelog + "' as scorelogdb");
+//			List<SongData> m;
+//
+//			if(info != null) {
+//				stmt.execute("ATTACH DATABASE '" + info + "' as infodb");
+//				String s = "SELECT DISTINCT md5, song.sha256 AS sha256, title, subtitle, genre, artist, subartist,path,folder,stagefile,banner,backbmp,parent,level,difficulty,"
+//						+ "maxbpm,minbpm,song.mode AS mode, judge, feature, content, song.date AS date, favorite, song.notes AS notes, adddate, preview, length, charthash"
+//						+ " FROM song INNER JOIN (information LEFT OUTER JOIN (score LEFT OUTER JOIN scorelog ON score.sha256 = scorelog.sha256) ON information.sha256 = score.sha256) "
+//						+ "ON song.sha256 = information.sha256 WHERE " + sql;
+//				ResultSet rs = stmt.executeQuery(s);
+//				m = songhandler.handle(rs);
+////				System.out.println(s + " -> result : " + m.size());
+//				stmt.execute("DETACH DATABASE infodb");
+//			} else {
+//				String s = "SELECT DISTINCT md5, song.sha256 AS sha256, title, subtitle, genre, artist, subartist,path,folder,stagefile,banner,backbmp,parent,level,difficulty,"
+//						+ "maxbpm,minbpm,song.mode AS mode, judge, feature, content, song.date AS date, favorite, song.notes AS notes, adddate, preview, length, charthash"
+//						+ " FROM song LEFT OUTER JOIN (score LEFT OUTER JOIN scorelog ON score.sha256 = scorelog.sha256) ON song.sha256 = score.sha256 WHERE " + sql;
+//				ResultSet rs = stmt.executeQuery(s);
+//				m = songhandler.handle(rs);
+//			}
+//			stmt.execute("DETACH DATABASE scorelogdb");
+//			stmt.execute("DETACH DATABASE scoredb");
+//			return Validatable.removeInvalidElements(m).toArray(new SongData[m.size()]);
+//		} catch(Throwable e) {
+//			e.printStackTrace();
+//		}
+//
+//		return SongData.EMPTY;
+//
+//	}
+//
+//	public SongData[] getSongDatasByText(String text) {
+//		try {
+//			List<SongData> m = qr.query(
+//					"SELECT * FROM song WHERE rtrim(title||' '||subtitle||' '||artist||' '||subartist||' '||genre) LIKE ?"
+//							+ " GROUP BY sha256",songhandler, "%" + text + "%");
+//			return Validatable.removeInvalidElements(m).toArray(new SongData[m.size()]);
+//		} catch (Exception e) {
+//			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
+//		}
+//
+//		return SongData.EMPTY;
+//	}
+//
+//	/**
+//	 * 楽曲を取得する
+//	 *
+//	 * @param key
+//	 *            属性
+//	 * @param value
+//	 *            属性値
+//	 * @return 検索結果
+//	 */
+//	public FolderData[] getFolderDatas(String key, String value) {
+//		try {
+//			final List<FolderData> m = qr.query("SELECT * FROM folder WHERE " + key + " = ?", folderhandler, value);
+//			return m.toArray(new FolderData[m.size()]);
+//		} catch (Exception e) {
+//			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
+//		}
+//
+//		return FolderData.EMPTY;
+//	}
+//
+//	/**
+//	 * 楽曲を更新する
+//	 *
+//	 * @param songs 更新する楽曲
+//	 */
+//	public void setSongDatas(SongData[] songs) {
+//		try (Connection conn = qr.getDataSource().getConnection()){
+//			conn.setAutoCommit(false);
+//
+//			for (SongData sd : songs) {
+//				this.insert(qr, conn, "song", sd);
+//			}
+//			conn.commit();
+//			conn.close();
+//		} catch (Exception e) {
+//			Logger.getGlobal().severe("song.db更新時の例外:" + e.getMessage());
+//		}
+//	}
 
 	/**
 	 * データベースを更新する
@@ -879,7 +879,7 @@ public class SQLiteSongDatabaseAccessor extends SQLiteDatabaseAccessor implement
 		}
 	}
 	
-	public static interface SongDatabaseAccessorPlugin {
-		public void update(BMSModel model, SongData song);
-	}
+//	public static interface SongDatabaseAccessorPlugin {
+//		public void update(BMSModel model, SongData song);
+//	}
 }

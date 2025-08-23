@@ -3,21 +3,21 @@ package bms.player.beatoraja.song;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
+//import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+//import java.util.Map;
 
 import bms.model.*;
 import bms.player.beatoraja.Validatable;
 import bms.player.beatoraja.play.BMSPlayerRule;
-import bms.tool.mdprocessor.IpfsInformation;
+//import bms.tool.mdprocessor.IpfsInformation;
 
 /**
  * 楽曲データ
  * 
  * @author exch
  */
-public class SongData implements Validatable, IpfsInformation {
+public class SongData implements Validatable {
 
 	public static final SongData[] EMPTY = new SongData[0];
 	
@@ -32,13 +32,13 @@ public class SongData implements Validatable, IpfsInformation {
 
 	public static final int CONTENT_TEXT = 1;
 	public static final int CONTENT_BGA = 2;
-	public static final int CONTENT_PREVIEW = 4;
+//	public static final int CONTENT_PREVIEW = 4;
 	public static final int CONTENT_NOKEYSOUND = 128;
 
-	public static final int FAVORITE_SONG = 1;
-	public static final int FAVORITE_CHART = 2;
-	public static final int INVISIBLE_SONG = 4;
-	public static final int INVISIBLE_CHART = 8;
+//	public static final int FAVORITE_SONG = 1;
+//	public static final int FAVORITE_CHART = 2;
+//	public static final int INVISIBLE_SONG = 4;
+//	public static final int INVISIBLE_CHART = 8;
 
 	/**
 	 * 楽曲タイトル
@@ -48,7 +48,7 @@ public class SongData implements Validatable, IpfsInformation {
 	 * 楽曲サブタイトル
 	 */
 	private String subtitle = "";
-	private String fulltitle;
+//	private String fulltitle;
 	/**
 	 * 楽曲ジャンル
 	 */
@@ -61,16 +61,16 @@ public class SongData implements Validatable, IpfsInformation {
 	 * 楽曲サブアーティスト名
 	 */
 	private String subartist = "";
-	private String fullartist;
+//	private String fullartist;
 	private int favorite;
 	private List<String> path = new ArrayList<String>();
 	private String tag = "";
 	private String md5 = "";
 	private String sha256 = "";
-	private String url;
-	private String appendurl;
-	private String ipfs;
-	private String appendipfs;
+//	private String url;
+//	private String appendurl;
+//	private String ipfs;
+//	private String appendipfs;
 	private int date;
 	private int adddate;
 	private int level;
@@ -114,15 +114,15 @@ public class SongData implements Validatable, IpfsInformation {
 	private String folder = "";
 	private String parent = "";
 
-	private BMSModel model;
-	private TimeLine[] timelines;
-	private SongInformation info;
+//	private BMSModel model;
+//	private TimeLine[] timelines;
+//	private SongInformation info;
 
 	private String charthash;
-	private List<String> org_md5;
-
+//	private List<String> org_md5;
+//
 	public SongData() {
-		
+
 	}
 	
 	public SongData(BMSModel model, boolean containstxt) {
@@ -134,7 +134,7 @@ public class SongData implements Validatable, IpfsInformation {
 		if(model == null) {
 			return;
 		}
-		this.model = model;
+//		this.model = model;
 		BMSPlayerRule.validate(model);
 		setTitle(model.getTitle());
 		setSubtitle(model.getSubTitle());
@@ -198,13 +198,13 @@ public class SongData implements Validatable, IpfsInformation {
 		length = model.getLastTime();
 		notes = model.getTotalNotes();
 
-		timelines = model.getAllTimeLines();
+//		timelines = model.getAllTimeLines();
 
 		feature |= model.getRandom() != null && model.getRandom().length > 0 ? FEATURE_RANDOM : 0;
 		content |= model.getBgaList().length > 0 ? CONTENT_BGA : 0;
 		content |= length >= 30000 && model.getWavList().length <= (length / (50 * 1000)) + 3 ? CONTENT_NOKEYSOUND : 0;
 		
-		info = new SongInformation(model);
+//		info = new SongInformation(model);
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			charthash = BMSDecoder.convertHexString(md.digest(model.toChartString().getBytes()));
@@ -213,9 +213,9 @@ public class SongData implements Validatable, IpfsInformation {
 		}
 	}
 
-	public BMSModel getBMSModel() {
-		return model;
-	}
+//	public BMSModel getBMSModel() {
+//		return model;
+//	}
 
 	public int getFavorite() {
 		return favorite;
@@ -234,17 +234,17 @@ public class SongData implements Validatable, IpfsInformation {
 		if(this.path.size() == 0) {
 			this.path.add(path);
 		} else {
-			this.path.set(0, path);			
+			this.path.set(0, path);
 		}
 	}
-	
-	public void addAnotherPath(String path) {
-		this.path.add(path);
-	}
-	
-	public String[] getAllPaths() {
-		return path.toArray(new String[0]);
-	}
+
+//	public void addAnotherPath(String path) {
+//		this.path.add(path);
+//	}
+//
+//	public String[] getAllPaths() {
+//		return path.toArray(new String[0]);
+//	}
 	
 	public String getTag() {
 		return tag;
@@ -252,9 +252,9 @@ public class SongData implements Validatable, IpfsInformation {
 	public void setTag(String tag) {
 		this.tag = tag;
 	}
-	public int getAdddate() {
-		return adddate;
-	}
+//	public int getAdddate() {
+//		return adddate;
+//	}
 	public void setAdddate(int adddate) {
 		this.adddate = adddate;
 	}
@@ -270,7 +270,7 @@ public class SongData implements Validatable, IpfsInformation {
 	
 	public void setTitle(String title) {
 		this.title = title;
-		fulltitle = null;
+//		fulltitle = null;
 	}
 	
 	public String getSubtitle() {
@@ -279,21 +279,21 @@ public class SongData implements Validatable, IpfsInformation {
 	
 	public void setSubtitle(String subtitle) {
 		this.subtitle = subtitle;
-		fulltitle = null;
+//		fulltitle = null;
 	}
 	
-	public String getFullTitle() {
-		if(fulltitle == null) {
-			fulltitle = subtitle.length() > 0 ? title + " " + subtitle : title;
-		}
-		return fulltitle;
-	}
+//	public String getFullTitle() {
+//		if(fulltitle == null) {
+//			fulltitle = subtitle.length() > 0 ? title + " " + subtitle : title;
+//		}
+//		return fulltitle;
+//	}
 	public String getArtist() {
 		return artist;
 	}
 	public void setArtist(String artist) {
 		this.artist = artist;
-		fullartist = null;
+//		fullartist = null;
 	}
 	public String getSubartist() {
 		return subartist;
@@ -301,21 +301,21 @@ public class SongData implements Validatable, IpfsInformation {
 	
 	public void setSubartist(String subartist) {
 		this.subartist = subartist;
-		fullartist = null;
+//		fullartist = null;
 	}
 	
-	public String getFullArtist() {
-		if(fullartist == null) {
-			fullartist = subartist.length() > 0 ? artist + " " + subartist : artist;
-		}
-		return fullartist;
-	}
+//	public String getFullArtist() {
+//		if(fullartist == null) {
+//			fullartist = subartist.length() > 0 ? artist + " " + subartist : artist;
+//		}
+//		return fullartist;
+//	}
 	public String getGenre() {
 		return genre;
 	}
-	public void setGenre(String genre) {
-		this.genre = genre;
-	}
+//	public void setGenre(String genre) {
+//		this.genre = genre;
+//	}
 	public int getMode() {
 		return mode;
 	}
@@ -360,54 +360,54 @@ public class SongData implements Validatable, IpfsInformation {
 	public void setBanner(String banner) {
 		this.banner = banner;
 	}
-	
-	public boolean hasDocument() {
-		return (content & CONTENT_TEXT) != 0;
-	}
-	
-	public boolean hasBGA() {
-		return (content & CONTENT_BGA) != 0;
-	}
 
-	public boolean hasPreview() {
-		return (content & CONTENT_PREVIEW) != 0;
-	}
-
-	public boolean hasRandomSequence() {
-		return (feature & FEATURE_RANDOM) != 0;
-	}
-
-	public boolean hasMineNote() {
-		return (feature & FEATURE_MINENOTE) != 0;
-	}
-
-	public boolean hasUndefinedLongNote() {
-		return (feature & FEATURE_UNDEFINEDLN) != 0;
-	}
-
-	public boolean hasLongNote() {
-		return (feature & FEATURE_LONGNOTE) != 0;
-	}
-
-	public boolean hasChargeNote() {
-		return (feature & FEATURE_CHARGENOTE) != 0;
-	}
-
-	public boolean hasHellChargeNote() {
-		return (feature & FEATURE_HELLCHARGENOTE) != 0;
-	}
-
-	public boolean hasAnyLongNote() {
-		return (feature & (FEATURE_UNDEFINEDLN | FEATURE_LONGNOTE | FEATURE_CHARGENOTE | FEATURE_HELLCHARGENOTE)) != 0;
-	}
-
-	public boolean isBpmstop() {
-		return (feature & FEATURE_STOPSEQUENCE) != 0;
-	}
-
-	public boolean hasScrollChange() {
-		return (feature & FEATURE_SCROLL) != 0;
-	}
+//	public boolean hasDocument() {
+//		return (content & CONTENT_TEXT) != 0;
+//	}
+//
+//	public boolean hasBGA() {
+//		return (content & CONTENT_BGA) != 0;
+//	}
+//
+//	public boolean hasPreview() {
+//		return (content & CONTENT_PREVIEW) != 0;
+//	}
+//
+//	public boolean hasRandomSequence() {
+//		return (feature & FEATURE_RANDOM) != 0;
+//	}
+//
+//	public boolean hasMineNote() {
+//		return (feature & FEATURE_MINENOTE) != 0;
+//	}
+//
+//	public boolean hasUndefinedLongNote() {
+//		return (feature & FEATURE_UNDEFINEDLN) != 0;
+//	}
+//
+//	public boolean hasLongNote() {
+//		return (feature & FEATURE_LONGNOTE) != 0;
+//	}
+//
+//	public boolean hasChargeNote() {
+//		return (feature & FEATURE_CHARGENOTE) != 0;
+//	}
+//
+//	public boolean hasHellChargeNote() {
+//		return (feature & FEATURE_HELLCHARGENOTE) != 0;
+//	}
+//
+//	public boolean hasAnyLongNote() {
+//		return (feature & (FEATURE_UNDEFINEDLN | FEATURE_LONGNOTE | FEATURE_CHARGENOTE | FEATURE_HELLCHARGENOTE)) != 0;
+//	}
+//
+//	public boolean isBpmstop() {
+//		return (feature & FEATURE_STOPSEQUENCE) != 0;
+//	}
+//
+//	public boolean hasScrollChange() {
+//		return (feature & FEATURE_SCROLL) != 0;
+//	}
 
 
 	public String getMd5() {
@@ -457,9 +457,9 @@ public class SongData implements Validatable, IpfsInformation {
 		this.judge = judge;
 	}
 
-	public TimeLine[] getTimelines() {
-		return timelines;
-	}
+//	public TimeLine[] getTimelines() {
+//		return timelines;
+//	}
 
 	public String getStagefile() {
 		return stagefile;
@@ -485,25 +485,25 @@ public class SongData implements Validatable, IpfsInformation {
 		this.preview = preview;
 	}
 
-	public SongInformation getInformation() {
-		return info;
-	}
-
-	public void setInformation(SongInformation info) {
-		this.info = info;
-	}
-	
-	public String getFolder() {
-		return folder;
-	}
+//	public SongInformation getInformation() {
+//		return info;
+//	}
+//
+//	public void setInformation(SongInformation info) {
+//		this.info = info;
+//	}
+//
+//	public String getFolder() {
+//		return folder;
+//	}
 
 	public void setFolder(String folder) {
 		this.folder = folder;
 	}
 
-	public String getParent() {
-		return parent;
-	}
+//	public String getParent() {
+//		return parent;
+//	}
 
 	public void setParent(String parent) {
 		this.parent = parent;
@@ -517,21 +517,21 @@ public class SongData implements Validatable, IpfsInformation {
 		this.length = length;
 	}
 
-	public String getUrl() {
-		return url;
-	}
-
-	public void setUrl(String url) {
-		this.url = url;
-	}
-
-	public String getAppendurl() {
-		return appendurl;
-	}
-
-	public void setAppendurl(String appendurl) {
-		this.appendurl = appendurl;
-	}
+//	public String getUrl() {
+//		return url;
+//	}
+//
+//	public void setUrl(String url) {
+//		this.url = url;
+//	}
+//
+//	public String getAppendurl() {
+//		return appendurl;
+//	}
+//
+//	public void setAppendurl(String appendurl) {
+//		this.appendurl = appendurl;
+//	}
 
 	public String getCharthash() {
 		return charthash;
@@ -541,45 +541,45 @@ public class SongData implements Validatable, IpfsInformation {
 		this.charthash = charthash;
 	}
 
-	public String getIpfs() {
-		return ipfs;
-	}
-
-	public void setIpfs(String ipfs) {
-		this.ipfs = ipfs;
-	}
-
-	public String getAppendIpfs() {
-		return appendipfs;
-	}
-
-	public void setAppendIpfs(String appendipfs) {
-		this.appendipfs = appendipfs;
-	}
-
-	public List<String> getOrg_md5() {
-		return org_md5;
-	}
-
-	public void setOrg_md5(List<String> org_md5) {
-		this.org_md5 = org_md5;
-	}
-	
-	public void merge(SongData song) {
-		if(url == null || url.length() == 0) {
-			url = song.getUrl();
-		}
-		if(appendurl == null || appendurl.length() == 0) {
-			appendurl = song.getAppendurl();
-		}
-	}
-	
-	public void shrink() {
-		fulltitle = fullartist = null;
-		path.clear();
-		date = adddate = level = mode = feature = difficulty = judge = minbpm = maxbpm = notes = length = 0;
-		folder = parent = preview = "";
-	}
+//	public String getIpfs() {
+//		return ipfs;
+//	}
+//
+//	public void setIpfs(String ipfs) {
+//		this.ipfs = ipfs;
+//	}
+//
+//	public String getAppendIpfs() {
+//		return appendipfs;
+//	}
+//
+//	public void setAppendIpfs(String appendipfs) {
+//		this.appendipfs = appendipfs;
+//	}
+//
+//	public List<String> getOrg_md5() {
+//		return org_md5;
+//	}
+//
+//	public void setOrg_md5(List<String> org_md5) {
+//		this.org_md5 = org_md5;
+//	}
+//
+//	public void merge(SongData song) {
+//		if(url == null || url.length() == 0) {
+//			url = song.getUrl();
+//		}
+//		if(appendurl == null || appendurl.length() == 0) {
+//			appendurl = song.getAppendurl();
+//		}
+//	}
+//
+//	public void shrink() {
+//		fulltitle = fullartist = null;
+//		path.clear();
+//		date = adddate = level = mode = feature = difficulty = judge = minbpm = maxbpm = notes = length = 0;
+//		folder = parent = preview = "";
+//	}
 
 	@Override
 	public boolean validate() {

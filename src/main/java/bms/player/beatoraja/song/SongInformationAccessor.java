@@ -5,7 +5,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.logging.Logger;
 
-import bms.player.beatoraja.Validatable;
+//import bms.player.beatoraja.Validatable;
 import bms.player.beatoraja.SQLiteDatabaseAccessor;
 
 import org.apache.commons.dbutils.QueryRunner;
@@ -65,54 +65,54 @@ public class SongInformationAccessor extends SQLiteDatabaseAccessor {
 		}
 	}
 
-	public SongInformation[] getInformations(String sql) {
-		try {
-			List<SongInformation> m = Validatable.removeInvalidElements(qr.query("SELECT * FROM information WHERE " + sql, songhandler));
-			return m.toArray(new SongInformation[m.size()]);
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return new SongInformation[0];		
-	}
-
-	public SongInformation getInformation(String sha256) {
-		try {
-			List<SongInformation> m = Validatable.removeInvalidElements(qr.query("SELECT * FROM information WHERE sha256 = ?", songhandler, sha256));
-			if(m.size() > 0) {
-				return m.get(0);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	public void getInformation(SongData[] songs) {
-		try {
-			StringBuilder str = new StringBuilder(songs.length * 64);
-			for (SongData song : songs) {
-				if(song.getSha256() != null) {
-					if (str.length() > 0) {
-						str.append(',');
-					}
-					str.append('\'').append(song.getSha256()).append('\'');
-				}
-			}
-
-			List<SongInformation> infos = Validatable.removeInvalidElements(qr
-					.query("SELECT * FROM information WHERE sha256 IN (" + str.toString() + ")", songhandler));
-			for(SongData song : songs) {
-				for(SongInformation info : infos) {
-					if(info.getSha256().equals(song.getSha256())) {
-						song.setInformation(info);
-						break;
-					}
-				}
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
+//	public SongInformation[] getInformations(String sql) {
+//		try {
+//			List<SongInformation> m = Validatable.removeInvalidElements(qr.query("SELECT * FROM information WHERE " + sql, songhandler));
+//			return m.toArray(new SongInformation[m.size()]);
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
+//		return new SongInformation[0];
+//	}
+//
+//	public SongInformation getInformation(String sha256) {
+//		try {
+//			List<SongInformation> m = Validatable.removeInvalidElements(qr.query("SELECT * FROM information WHERE sha256 = ?", songhandler, sha256));
+//			if(m.size() > 0) {
+//				return m.get(0);
+//			}
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
+//		return null;
+//	}
+//
+//	public void getInformation(SongData[] songs) {
+//		try {
+//			StringBuilder str = new StringBuilder(songs.length * 64);
+//			for (SongData song : songs) {
+//				if(song.getSha256() != null) {
+//					if (str.length() > 0) {
+//						str.append(',');
+//					}
+//					str.append('\'').append(song.getSha256()).append('\'');
+//				}
+//			}
+//
+//			List<SongInformation> infos = Validatable.removeInvalidElements(qr
+//					.query("SELECT * FROM information WHERE sha256 IN (" + str.toString() + ")", songhandler));
+//			for(SongData song : songs) {
+//				for(SongInformation info : infos) {
+//					if(info.getSha256().equals(song.getSha256())) {
+//						song.setInformation(info);
+//						break;
+//					}
+//				}
+//			}
+//		} catch (SQLException e) {
+//			e.printStackTrace();
+//		}
+//	}
 
 	public void startUpdate() {
 		try {

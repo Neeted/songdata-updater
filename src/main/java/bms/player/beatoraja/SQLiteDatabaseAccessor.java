@@ -203,7 +203,7 @@ public abstract class SQLiteDatabaseAccessor {
 		private String defaultval;
 		
 		public Column() {
-			
+
 		}
 
 		public Column(String name, String type) {
