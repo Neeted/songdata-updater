@@ -7,32 +7,47 @@ import bms.player.beatoraja.song.SongInformationAccessor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.logging.*;
 
 public class Main {
 
-    static {
+    public static void main(String[] args) {
+        // イントロ
+        System.out.println("songdata-updater 1.1.0");
+//        System.out.println("Everything 1.5 Alpha での動作確認は 1.5.0.1396a (x64) で行いました");
+//        System.out.println("Everything での動作確認は 1.4.1.1028 (x64) で行いました");
+
+        // ログの設定
         try {
+            Logger.getGlobal().setUseParentHandlers(false);
+
             FileHandler fileHandler = new FileHandler("songdata-updater_log.xml", false);
             Logger.getGlobal().addHandler(fileHandler);
+
+            ConsoleHandler handler = new ConsoleHandler();
+            handler.setFormatter(new LogFormatter());
+            handler.setLevel(Level.INFO);
+
+            Logger.getGlobal().addHandler(handler);
         } catch (IOException e) {
             Logger.getGlobal().log(Level.SEVERE, "ログファイルの保存先を設定できませんでした", e);
             System.exit(1);
         }
-    }
 
-    public static void main(String[] args) {
+        // コンフィグ読み込み
         if (!Files.exists(Paths.get("config_sys.json"))){
             Logger.getGlobal().warning("config_sys.jsonが見つかりません。beatorajaのディレクトリで実行してください。");
             System.exit(1);
         }
         Config config = Config.read();
 
-        SongInformationAccessor infodb = null;
-        SQLiteSongDatabaseAccessor songdb = null;
+        // 以下メイン処理
+        SongInformationAccessor infodb;
+        SQLiteSongDatabaseAccessor songdb;
         boolean updateAll = false;
 
         if (args.length > 0) {
@@ -54,13 +69,36 @@ public class Main {
 
         try {
             infodb = new SongInformationAccessor(config.getSonginfopath());
-            songdb = new SQLiteSongDatabaseAccessor(config.getSongpath(), config.getBmsroot());
-            Logger.getGlobal().info("song.db更新開始");
+            songdb = new SQLiteSongDatabaseAccessor(config.getSongpath());
+            Logger.getGlobal().info("songdata.db / songinfo.db 更新開始");
             songdb.updateSongDatas(null, config.getBmsroot(), updateAll, infodb);
-            Logger.getGlobal().info("song.db更新完了");
+            Logger.getGlobal().info("songdata.db / songinfo.db 更新完了");
         } catch (Exception e) {
             Logger.getGlobal().log(Level.SEVERE, "何らかのエラーでsong.dbの更新ができませんでした:", e);
             System.exit(1);
         }
+    }
+}
+
+class LogFormatter extends Formatter {
+    private static final DateTimeFormatter FORMATTER =
+            DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSS")
+                             .withZone(ZoneId.systemDefault());
+    @Override
+    public String format(LogRecord record) {
+        // 日時フォーマット
+        String time = FORMATTER.format(Instant.ofEpochMilli(record.getMillis()));
+        // 呼び出し元
+        String source = record.getSourceClassName();
+        // スレッドID
+        long threadId = record.getLongThreadID();
+
+        // ログ書式
+        return String.format("[%s] [%s] (thread:%d) %s [%s]%n",
+                time,
+                record.getLevel().getName(),
+                threadId,
+                formatMessage(record),
+                source);
     }
 }

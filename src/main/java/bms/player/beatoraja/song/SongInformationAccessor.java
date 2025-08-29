@@ -3,6 +3,7 @@ package bms.player.beatoraja.song;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 //import bms.player.beatoraja.Validatable;
@@ -27,8 +28,8 @@ public class SongInformationAccessor extends SQLiteDatabaseAccessor {
 
 	private final SQLiteDataSource ds;
 
-	private final ResultSetHandler<List<SongInformation>> songhandler = new BeanListHandler<SongInformation>(
-			SongInformation.class);
+	private final ResultSetHandler<List<SongInformation>> songhandler = new BeanListHandler<>(
+            SongInformation.class);
 
 	private final QueryRunner qr;
 
@@ -54,14 +55,17 @@ public class SongInformationAccessor extends SQLiteDatabaseAccessor {
 		SQLiteConfig conf = new SQLiteConfig();
 		conf.setSharedCache(true);
 		conf.setSynchronous(SynchronousMode.OFF);
-		// conf.setJournalMode(JournalMode.MEMORY);
+        conf.setJournalMode(SQLiteConfig.JournalMode.MEMORY);
+        conf.setTempStore(SQLiteConfig.TempStore.MEMORY);
+        conf.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+        conf.setCacheSize(-50000);
 		ds = new SQLiteDataSource(conf);
 		ds.setUrl("jdbc:sqlite:" + filepath);
 		qr = new QueryRunner(ds);
 		try {
 			validate(qr);
 		} catch (SQLException e) {
-			Logger.getGlobal().severe("楽曲データベース初期化中の例外:" + e.getMessage());
+            Logger.getGlobal().log(Level.SEVERE,"楽曲データベース初期化中の例外:", e);
 		}
 	}
 
@@ -123,7 +127,7 @@ public class SongInformationAccessor extends SQLiteDatabaseAccessor {
 				try {
 					conn.close();
 				} catch (SQLException e1) {
-					e1.printStackTrace();
+                    Logger.getGlobal().log(Level.SEVERE, "info.startUpdate()の例外", e1);
 				}
 			}
 			conn = null;
@@ -135,7 +139,7 @@ public class SongInformationAccessor extends SQLiteDatabaseAccessor {
 		try {
 			insert(qr, conn, "information", info);
 		} catch (SQLException e) {
-			e.printStackTrace();
+            Logger.getGlobal().log(Level.SEVERE, "info.update()の例外", e);
 		}
 	}
 
@@ -149,7 +153,7 @@ public class SongInformationAccessor extends SQLiteDatabaseAccessor {
 					try {
 						conn.close();
 					} catch (SQLException e1) {
-						e1.printStackTrace();
+                        Logger.getGlobal().log(Level.SEVERE, "info.endUpdate()の例外", e1);
 					}
 				}
 				conn = null;

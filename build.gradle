@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'jp.howan.songdata'
-version = '1.0.2'
+version = '1.1.0'
 
 repositories {
     mavenCentral()
@@ -25,6 +25,7 @@ dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.50.3.0'            // https://mvnrepository.com/artifact/org.xerial/sqlite-jdbc
     implementation 'commons-dbutils:commons-dbutils:1.8.1'      // https://mvnrepository.com/artifact/commons-dbutils/commons-dbutils
     implementation 'net.java.dev.jna:jna:5.17.0'                // https://mvnrepository.com/artifact/net.java.dev.jna/jna
+    implementation 'net.java.dev.jna:jna-platform:5.17.0'       // https://mvnrepository.com/artifact/net.java.dev.jna/jna-platform
 }
 
 application {

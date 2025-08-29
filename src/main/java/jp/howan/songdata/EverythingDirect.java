@@ -2,36 +2,32 @@ package jp.howan.songdata;
 
 import com.sun.jna.Native;
 import com.sun.jna.WString;
+import com.sun.jna.platform.win32.WinBase.FILETIME;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.*;
 import java.util.logging.Logger;
 
 /**
  * EverythingDirect
- * Direct Mapping（JNA Native.register）で Everything SDK の主要関数を呼び出すためのユーティリティ。
+ * Direct Mapping（JNA Native.register）で Everything SDK の主要関数を呼び出すためのユーティリティ
  * 動作前提
  * - 実行時のカレントディレクトリ（System.getProperty("user.dir")）配下にある
- *   "natives/Everything64.dll" または "natives/Everything32.dll" を参照してロードします。
- * - DLL が見つからない／ロードできない場合は isAvailable() が false を返し、呼び出しはフォールバック可能です。
- * 使い方（例）:
- *   if (EverythingDirect.isAvailable()) {
- *       List<Path> p = EverythingDirect.doSearchCollect("parent:\"D:\\BMS\\\" ext:bms;bme count:1");
- *   }
+ *   "natives/Everything64.dll"を参照してロードします。
+ * - DLL が見つからない / ロードできない場合は isAvailable() が false を返します。
  */
 public final class EverythingDirect {
     // ロード成功フラグ（static 初期化で設定される）
     private static volatile boolean loaded = false;
+    // 検索はスレッドセーフではないのでロック
+    private static final Object LOCK = new Object();
 
     static {
         try {
             String userDir = System.getProperty("user.dir", ".");
-
             String dll64 = "Everything64.dll";
-
             Path nativesDir = Paths.get(userDir, "natives");
             Path dllPath = null;
 
@@ -45,8 +41,11 @@ public final class EverythingDirect {
                 // 軽いプローブ: バージョンを取得してみる
                 int major = Everything_GetMajorVersion();
                 int minor = Everything_GetMinorVersion();
-                if (major > 0 || minor > 0) {
-                    Logger.getGlobal().info("[EverythingDirect] Everything64.dll がロードされました from: " + dllPath.toAbsolutePath());
+                int revision = Everything_GetRevision();
+
+                // バージョンが取得できていれば疎通成功
+                if (major > 0 || minor > 0 || revision > 0) {
+                    Logger.getGlobal().info("[EverythingDirect] Everything64.dll がロードされました version: " + major + "." + minor + "." + revision + " from: " + dllPath.toAbsolutePath());
                     loaded = true;
                 } else {
                     Logger.getGlobal().severe("[EverythingDirect] Everything との疎通に失敗しました Everything は無効です");
@@ -71,7 +70,14 @@ public final class EverythingDirect {
     // NOTE: これらのシグネチャは、Everything SDKでエクスポートされた関数と一致する必要があります。
     private static native int Everything_GetMajorVersion();
     private static native int Everything_GetMinorVersion();
+    private static native int Everything_GetRevision();
     public static native void Everything_SetSearchW(WString search);
+
+    // 検索フラグ、一部の検索はクエリ実行前に適切なフラグをセットしておかないと結果を受け取れない
+    // https://www.voidtools.com/support/everything/sdk/everything_setrequestflags/
+    public static native void Everything_SetRequestFlags(int flags);
+    private static final int EVERYTHING_REQUEST_FULL_PATH_AND_FILE_NAME = 0x00000004;
+    private static final int EVERYTHING_REQUEST_DATE_MODIFIED = 0x00000040;
 
     /**
      * QueryW の wait パラメータ
@@ -93,9 +99,9 @@ public final class EverythingDirect {
 
     /**
      * Everything_GetResultDateModified
-     * 戻り: FILETIME 相当の 64bit 値（100ns 単位、1601基準）
+     * 戻り: 関数が成功したかどうか、成功していればftポインタにFILETIME構造体が書き込まれているはず。FILETIMEは64bit(100ns単位、1601基準）
      */
-    public static native long Everything_GetResultDateModified(int index);
+    public static native boolean Everything_GetResultDateModified(int index, FILETIME ft);
 
     public static native int Everything_GetLastError();
 
@@ -120,124 +126,139 @@ public final class EverythingDirect {
         if (!isAvailable()) return Collections.emptyList();
         Objects.requireNonNull(search);
 
-        try {
-            // match case を無効化して case-insensitive にしておく（必要なら省く）
-            try { Everything_SetMatchCase(false); } catch (Throwable ignore) {}
+        synchronized (LOCK) {
+            try {
+                // match case を無効化して case-insensitive にしておく（必要なら省く）
+                try { Everything_SetMatchCase(false); } catch (Throwable ignore) {}
 
-            Everything_SetSearchW(new WString(search));
-            boolean ok = Everything_QueryW(true);
-            if (!ok) {
-                int err = Everything_GetLastError();
-                Logger.getGlobal().severe("[EverythingDirect] QueryW returned false. err=" + err + " query=" + search);
-                // QueryW false でも Everything_GetLastError が 0 の場合があるため空リストでフォールバック
-                return Collections.emptyList();
-            }
+                // --- フルパスのみ受け取る場合はフラグをセットしなくても動いていたが、一応明示的にセットする ---
+                Everything_SetRequestFlags(EVERYTHING_REQUEST_FULL_PATH_AND_FILE_NAME);
 
-            int n = Everything_GetNumResults();
-            if (n <= 0) return Collections.emptyList();
-
-            List<Path> out = new ArrayList<>(n);
-            final int BUF = 4096;
-            char[] buf = new char[BUF];
-
-            for (int i = 0; i < n; i++) {
-                int r = Everything_GetResultFullPathNameW(i, buf, buf.length);
-                if (r <= 0) continue;
-
-                if (r >= buf.length) {
-                    char[] big = new char[r + 2];
-                    int r2 = Everything_GetResultFullPathNameW(i, big, big.length);
-                    if (r2 > 0) out.add(Paths.get(new String(big, 0, r2)));
-                } else {
-                    out.add(Paths.get(new String(buf, 0, r)));
+                Everything_SetSearchW(new WString(search));
+                boolean ok = Everything_QueryW(true);
+                if (!ok) {
+                    int err = Everything_GetLastError();
+                    Logger.getGlobal().severe("[EverythingDirect] QueryW returned false. err=" + err + " query=" + search);
+                    // QueryW false でも Everything_GetLastError が 0 の場合があるため空リストでフォールバック
+                    return Collections.emptyList();
                 }
-            }
 
-            return out;
-        } catch (UnsatisfiedLinkError e) {
-            // ライブラリがロードできていない場合は空リストでフォールバック
-            return Collections.emptyList();
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return Collections.emptyList();
-        }
-    }
+                int n = Everything_GetNumResults();
+                if (n <= 0) return Collections.emptyList();
 
-    /**
-     * 検索結果のパスと更新日時 (Instant) を含むクラス
-     *
-     * @param lastModified null あり得る
-     */
-        public record SearchResult(Path path, Instant lastModified) {
+                List<Path> out = new ArrayList<>(n);
+                final int BUF = 4096;
+                char[] buf = new char[BUF];
 
-        @Override
-            public String toString() {
-                return "SearchResult{" + path + ", lastModified=" + lastModified + "}";
-            }
-        }
+                for (int i = 0; i < n; i++) {
+                    int r = Everything_GetResultFullPathNameW(i, buf, buf.length);
+                    if (r <= 0) continue;
 
-    /**
-     * 検索クエリでパスと更新日時をまとめて取得するヘルパ
-     */
-    public static List<SearchResult> doSearchCollectWithDates(String search) {
-        if (!isAvailable()) return Collections.emptyList();
-        Objects.requireNonNull(search);
-
-        try {
-            try { Everything_SetMatchCase(false); } catch (Throwable ignore) {}
-
-            Everything_SetSearchW(new WString(search));
-            boolean ok = Everything_QueryW(true);
-            if (!ok) {
-                int err = Everything_GetLastError();
-                Logger.getGlobal().severe("[EverythingDirect] QueryW returned false. err=" + err + " query=" + search);
-                return Collections.emptyList();
-            }
-
-            int n = Everything_GetNumResults();
-            if (n <= 0) return Collections.emptyList();
-
-            List<SearchResult> out = new ArrayList<>(n);
-            final int BUF = 4096;
-            char[] buf = new char[BUF];
-
-            for (int i = 0; i < n; i++) {
-                int r = Everything_GetResultFullPathNameW(i, buf, buf.length);
-                Path p = null;
-                if (r > 0) {
                     if (r >= buf.length) {
                         char[] big = new char[r + 2];
                         int r2 = Everything_GetResultFullPathNameW(i, big, big.length);
-                        if (r2 > 0) p = Paths.get(new String(big, 0, r2));
+                        if (r2 > 0) out.add(Paths.get(new String(big, 0, r2)));
                     } else {
-                        p = Paths.get(new String(buf, 0, r));
+                        out.add(Paths.get(new String(buf, 0, r)));
                     }
                 }
 
-                Instant inst = null;
-                try {
-                    long filetime100ns = Everything_GetResultDateModified(i);
-                    if (filetime100ns != 0L) inst = filetimeToInstant(filetime100ns);
-                } catch (Throwable ignore) {
-                }
-
-                if (p != null) out.add(new SearchResult(p, inst));
+                return out;
+            } catch (UnsatisfiedLinkError e) {
+                // ライブラリがロードできていない場合は空リストでフォールバック
+                return Collections.emptyList();
+            } catch (Throwable t) {
+                t.printStackTrace();
+                return Collections.emptyList();
             }
-
-            return out;
-        } catch (UnsatisfiedLinkError e) {
-            return Collections.emptyList();
-        } catch (Throwable t) {
-            t.printStackTrace();
-            return Collections.emptyList();
         }
     }
 
-    // FILETIME (100 ns since 1601) -> Instant
-    private static Instant filetimeToInstant(long filetime100ns) {
-        final long WINDOWS_EPOCH_DIFF_100NS = 116444736000000000L; // 1601->1970 diff in 100ns units
-        long ms = (filetime100ns - WINDOWS_EPOCH_DIFF_100NS) / 10_000L;
-        return Instant.ofEpochMilli(ms);
+    /**
+     * 検索クエリでパスと更新日時をまとめて取得するヘルパ
+     * @param search Everythingでの検索クエリ文字列
+     * @return Path と lastModified(UNIX時間) を持つレコードの List
+     */
+    public static List<EverythingSearchResult> doSearchCollectWithDates(String search) {
+        if (!isAvailable()) return Collections.emptyList();
+        Objects.requireNonNull(search);
+
+        synchronized (LOCK) {
+            try {
+                // --- クエリ実行前に必ず request flags をセットする ---
+                Everything_SetRequestFlags(EVERYTHING_REQUEST_FULL_PATH_AND_FILE_NAME | EVERYTHING_REQUEST_DATE_MODIFIED);
+
+                Everything_SetSearchW(new WString(search));
+                boolean ok = Everything_QueryW(true);
+                if (!ok) {
+                    int err = Everything_GetLastError();
+                    Logger.getGlobal().severe("[EverythingDirect] QueryW returned false. err=" + err + " query=" + search);
+                    return Collections.emptyList();
+                }
+
+                int n = Everything_GetNumResults();
+                if (n <= 0) return Collections.emptyList();
+
+                List<EverythingSearchResult> out = new ArrayList<>(n);
+                final int BUF = 4096;
+                char[] buf = new char[BUF];
+
+                for (int i = 0; i < n; i++) {
+                    int r = Everything_GetResultFullPathNameW(i, buf, buf.length);
+                    Path p = null;
+                    if (r > 0) {
+                        if (r >= buf.length) {
+                            char[] big = new char[r + 2];
+                            int r2 = Everything_GetResultFullPathNameW(i, big, big.length);
+                            if (r2 > 0) p = Paths.get(new String(big, 0, r2));
+                        } else {
+                            p = Paths.get(new String(buf, 0, r));
+                        }
+                    }
+
+                    long unixtime = 0L;
+                    try {
+                        // FILETIMEはunsigned long long (64bit, 100ns単位, 1601-01-01 UTCから)
+                        FILETIME ft = new FILETIME();
+                        boolean got = Everything_GetResultDateModified(i, ft);
+                        int err = Everything_GetLastError();
+                        if (got) {
+                            long ft100ns = filetimeStructTo100ns(ft);
+                            final long FILETIME_EPOCH_DIFF = 116444736000000000L;
+                            unixtime = (ft100ns - FILETIME_EPOCH_DIFF) / 10_000_000L;
+                        } else {
+                            // 取得失敗: err をログに残す (err が EVERYTHING_ERROR_INVALIDCALL 等)
+                            Logger.getGlobal().severe("[EverythingDirect] GetResultDateModified returned false. err=" + err + " query=" + search);
+                        }
+                    } catch (Throwable ignore) {
+                    }
+
+                    if (p != null) out.add(new EverythingSearchResult(p, unixtime));
+                }
+
+                return out;
+            } catch (UnsatisfiedLinkError e) {
+                return Collections.emptyList();
+            } catch (Throwable t) {
+                t.printStackTrace();
+                return Collections.emptyList();
+            }
+        }
+    }
+
+    /**
+     * FILETIME構造体をlong型に変換する
+     * Windowsのファイルシステムの更新日時で用いられている高解像度タイムスタンプ
+     * 1601 年 1 月 1 日午前 12 時から経過した 100 ナノ秒間隔 (UTC) の数を表す 64 ビット値
+     * @param ft FILETIME 構造体
+     * @return long に変換した FILETIME 構造体
+     */
+    // ヘルパ: FILETIME -> 100ns 値 (unsigned long long)
+    private static long filetimeStructTo100ns(com.sun.jna.platform.win32.WinBase.FILETIME ft) {
+        // FILETIME has dwLowDateTime (DWORD) and dwHighDateTime (DWORD)
+        long low = ft.dwLowDateTime & 0xFFFFFFFFL;
+        long high = ft.dwHighDateTime & 0xFFFFFFFFL;
+        return (high << 32) | low;
     }
 }
 
